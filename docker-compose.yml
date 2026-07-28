@@ -1,0 +1,33 @@
+# FaceForge 全栈编排 —— 需 NVIDIA GPU 宿主(nvidia-container-toolkit)
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    volumes:
+      - models:/models
+    environment:
+      - FACEFORGE_MODELS_DIR=/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://localhost:8000
+    depends_on:
+      - api
+
+volumes:
+  models:

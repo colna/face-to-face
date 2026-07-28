@@ -1,0 +1,16 @@
+# FaceForge API 网关(依赖 face-engine;GPU 推理需在带卡宿主运行)
+FROM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.10 python3-pip ffmpeg libgl1 libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+COPY services/face-engine ./services/face-engine
+COPY services/api ./services/api
+RUN pip3 install --no-cache-dir -e "services/face-engine" -e "services/api" \
+    && pip3 install --no-cache-dir onnxruntime-gpu
+
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "services/api"]

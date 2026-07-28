@@ -19,6 +19,9 @@ include = ["app*"]
 line-length = 100
 target-version = "py39"
 
+[tool.ruff.lint]
+ignore = ["FA100"]
+
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true

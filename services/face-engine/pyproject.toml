@@ -19,6 +19,10 @@ include = ["engine*"]
 line-length = 100
 target-version = "py39"
 
+[tool.ruff.lint]
+# pydantic v2 在 py39 运行期需 typing.Optional,不能改用 PEP604 union
+ignore = ["FA100"]
+
 [tool.mypy]
 python_version = "3.9"
 ignore_missing_imports = true

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "faceforge-engine"
+version = "0.1.0"
+description = "FaceForge 换脸引擎:封装 FaceFusion / Deep-Live-Cam + 模型管理"
+requires-python = ">=3.9"
+dependencies = ["pydantic>=2.5"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.8"]
+
+[tool.setuptools.packages.find]
+include = ["engine*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.mypy]
+python_version = "3.9"
+ignore_missing_imports = true

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from engine.jobs import VideoJobManager
+from engine.realtime import FrameProcessor, RealtimeSession
 from engine.schemas import (
     FaceEnhancer,
     ImageSwapRequest,
@@ -23,11 +24,18 @@ from fastapi import (
     Form,
     HTTPException,
     UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
 )
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
-from app.deps import ImageSwapper, get_swapper, get_video_manager
+from app.deps import (
+    ImageSwapper,
+    get_realtime_processor,
+    get_swapper,
+    get_video_manager,
+)
 
 app = FastAPI(title="FaceForge API", version="0.1.0")
 
@@ -158,3 +166,30 @@ def download_job(
     if state.status != JobStatus.DONE or not state.output_path:
         raise HTTPException(status_code=409, detail=f"任务未完成(status={state.status.value})")
     return FileResponse(state.output_path, media_type="video/mp4", filename="result.mp4")
+
+
+@app.websocket("/ws/realtime")
+async def ws_realtime(
+    ws: WebSocket,
+    processor: Optional[FrameProcessor] = Depends(get_realtime_processor),
+) -> None:
+    """实时换脸:首条 JSON 配置 {source_face_path},随后逐帧二进制收发。"""
+    await ws.accept()
+    cfg = await ws.receive_json()
+    source = cfg.get("source_face_path", "")
+    if not source:
+        await ws.send_json({"error": "source_face_path 不能为空"})
+        await ws.close()
+        return
+    session = RealtimeSession(source_face_path=source, processor=processor)
+    try:
+        while True:
+            frame = await ws.receive_bytes()
+            try:
+                out = session.process_frame(frame)
+            except (ValueError, NotImplementedError) as exc:
+                await ws.send_json({"error": str(exc)})
+                continue
+            await ws.send_bytes(out)
+    except WebSocketDisconnect:
+        return

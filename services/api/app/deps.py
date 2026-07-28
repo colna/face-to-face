@@ -4,6 +4,7 @@ from typing import Optional, Protocol
 
 from engine.facefusion_runner import FaceFusionRunner
 from engine.jobs import VideoJobManager
+from engine.realtime import FrameProcessor
 from engine.schemas import ImageSwapRequest
 
 
@@ -32,3 +33,8 @@ def get_video_manager() -> VideoJobManager:
         runner = FaceFusionRunner(facefusion_dir=_facefusion_dir())
         _video_manager = VideoJobManager(swap_fn=runner.swap_video)
     return _video_manager
+
+
+def get_realtime_processor() -> Optional[FrameProcessor]:
+    """实时帧处理器。默认 None → RealtimeSession 用内置 GPU 引擎(🖥️);测试 override 注入 mock。"""
+    return None

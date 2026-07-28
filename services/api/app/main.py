@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 
 from engine.jobs import VideoJobManager
+from engine.models import MODEL_CATALOG, ModelManager
 from engine.realtime import FrameProcessor, RealtimeSession
 from engine.schemas import (
     FaceEnhancer,
@@ -32,6 +33,7 @@ from pydantic import ValidationError
 
 from app.deps import (
     ImageSwapper,
+    get_model_manager,
     get_realtime_processor,
     get_swapper,
     get_video_manager,
@@ -46,6 +48,17 @@ WORK_DIR = Path(os.environ.get("FACEFORGE_WORK_DIR", tempfile.gettempdir())) / "
 def health() -> dict[str, str]:
     """健康检查。"""
     return {"status": "ok", "service": "faceforge-api"}
+
+
+@app.get("/models")
+def list_models(mgr: ModelManager = Depends(get_model_manager)) -> dict[str, object]:
+    """模型清单与就绪状态(启动自检)。"""
+    status = mgr.self_check(MODEL_CATALOG)
+    models = [
+        {"name": m.name, "category": m.category, "present": status[m.name]}
+        for m in MODEL_CATALOG
+    ]
+    return {"models": models, "all_ready": all(status.values())}
 
 
 def _save_upload(upload: UploadFile, dest: Path) -> None:

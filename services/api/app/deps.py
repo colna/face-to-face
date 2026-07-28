@@ -1,9 +1,12 @@
 """API 依赖装配:引擎实例(可被测试 override)。"""
 import os
+import tempfile
+from pathlib import Path
 from typing import Optional, Protocol
 
 from engine.facefusion_runner import FaceFusionRunner
 from engine.jobs import VideoJobManager
+from engine.models import ModelManager
 from engine.realtime import FrameProcessor
 from engine.schemas import ImageSwapRequest
 
@@ -38,3 +41,17 @@ def get_video_manager() -> VideoJobManager:
 def get_realtime_processor() -> Optional[FrameProcessor]:
     """实时帧处理器。默认 None → RealtimeSession 用内置 GPU 引擎(🖥️);测试 override 注入 mock。"""
     return None
+
+
+_model_manager: Optional[ModelManager] = None
+
+
+def get_model_manager() -> ModelManager:
+    """模型管理器单例(启动自检/状态查询)。"""
+    global _model_manager
+    if _model_manager is None:
+        mdir = os.environ.get(
+            "FACEFORGE_MODELS_DIR", str(Path(tempfile.gettempdir()) / "faceforge-models")
+        )
+        _model_manager = ModelManager(models_dir=mdir)
+    return _model_manager

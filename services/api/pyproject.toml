@@ -7,7 +7,13 @@ name = "faceforge-api"
 version = "0.1.0"
 description = "FaceForge API 网关:REST + WebSocket"
 requires-python = ">=3.9"
-dependencies = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "pydantic>=2.5"]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "pydantic>=2.5",
+  "python-multipart>=0.0.9",
+  "faceforge-engine",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.8", "httpx>=0.27"]
@@ -20,7 +26,8 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-ignore = ["FA100"]
+# FA100: py39+pydantic 需 typing.Optional;B008: FastAPI Depends/File/Form 惯用法
+ignore = ["FA100", "B008"]
 
 [tool.mypy]
 python_version = "3.9"

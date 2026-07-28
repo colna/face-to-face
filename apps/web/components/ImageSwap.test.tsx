@@ -61,3 +61,19 @@ describe("ImageSwap", () => {
     );
   });
 });
+
+describe("ImageSwap 预设", () => {
+  it("选质量预设后按 preset 提交,隐藏手动参数", async () => {
+    vi.mocked(api.swapImage).mockResolvedValue(new Blob([new Uint8Array([9])]));
+    render(<ImageSwap />);
+    selectFile("源脸(Source)", "s.png");
+    selectFile("目标图(Target)", "t.png");
+    fireEvent.change(screen.getByLabelText("质量预设"), {
+      target: { value: "quality" },
+    });
+    expect(screen.queryByLabelText("增强器")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "开始换脸" }));
+    await waitFor(() => expect(api.swapImage).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.swapImage).mock.calls[0][2]).toEqual({ preset: "quality" });
+  });
+});

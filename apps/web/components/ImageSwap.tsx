@@ -2,12 +2,15 @@
 
 import { useState } from "react";
 import { swapImage } from "@/lib/api";
-import type { FaceEnhancer, SwapParams } from "@/lib/types";
+import type { FaceEnhancer, QualityPreset, SwapParams } from "@/lib/types";
 import { FilePicker } from "./FilePicker";
+
+type PresetChoice = "custom" | QualityPreset;
 
 export function ImageSwap() {
   const [source, setSource] = useState<File | null>(null);
   const [target, setTarget] = useState<File | null>(null);
+  const [preset, setPreset] = useState<PresetChoice>("custom");
   const [enhancer, setEnhancer] = useState<FaceEnhancer>("codeformer");
   const [blend, setBlend] = useState(80);
   const [occlusion, setOcclusion] = useState(true);
@@ -23,11 +26,14 @@ export function ImageSwap() {
     setError(null);
     setResultUrl(null);
     try {
-      const params: SwapParams = {
-        face_enhancer: enhancer,
-        face_enhancer_blend: blend,
-        occlusion_mask: occlusion,
-      };
+      const params: SwapParams =
+        preset === "custom"
+          ? {
+              face_enhancer: enhancer,
+              face_enhancer_blend: blend,
+              occlusion_mask: occlusion,
+            }
+          : { preset };
       const blob = await swapImage(source, target, params);
       setResultUrl(URL.createObjectURL(blob));
     } catch (e) {
@@ -43,37 +49,55 @@ export function ImageSwap() {
       <FilePicker label="目标图(Target)" accept="image/*" onSelect={setTarget} />
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-gray-600">增强器</span>
+        <span className="text-gray-600">质量预设</span>
         <select
-          value={enhancer}
-          onChange={(e) => setEnhancer(e.target.value as FaceEnhancer)}
+          value={preset}
+          onChange={(e) => setPreset(e.target.value as PresetChoice)}
           className="rounded border border-gray-300 p-2"
         >
-          <option value="codeformer">CodeFormer</option>
-          <option value="gfpgan">GFPGAN</option>
-          <option value="none">不增强</option>
+          <option value="custom">自定义</option>
+          <option value="fast">快速</option>
+          <option value="balanced">均衡</option>
+          <option value="quality">质量优先</option>
         </select>
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-gray-600">增强融合度 {blend}</span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          value={blend}
-          onChange={(e) => setBlend(Number(e.target.value))}
-        />
-      </label>
+      {preset === "custom" && (
+        <>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-gray-600">增强器</span>
+            <select
+              value={enhancer}
+              onChange={(e) => setEnhancer(e.target.value as FaceEnhancer)}
+              className="rounded border border-gray-300 p-2"
+            >
+              <option value="codeformer">CodeFormer</option>
+              <option value="gfpgan">GFPGAN</option>
+              <option value="none">不增强</option>
+            </select>
+          </label>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={occlusion}
-          onChange={(e) => setOcclusion(e.target.checked)}
-        />
-        <span className="text-gray-600">遮挡蒙版</span>
-      </label>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-gray-600">增强融合度 {blend}</span>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={blend}
+              onChange={(e) => setBlend(Number(e.target.value))}
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={occlusion}
+              onChange={(e) => setOcclusion(e.target.checked)}
+            />
+            <span className="text-gray-600">遮挡蒙版</span>
+          </label>
+        </>
+      )}
 
       <button
         type="button"

@@ -77,3 +77,20 @@ def test_job_state_progress_range() -> None:
 def test_enum_serialization() -> None:
     assert JobStatus.DONE.value == "done"
     assert FaceEnhancer.NONE.value == "none"
+
+
+def test_quality_presets() -> None:
+    from engine.schemas import FaceEnhancer, QualityPreset, resolve_preset
+
+    fast = resolve_preset(QualityPreset.FAST)
+    assert fast.face_enhancer == FaceEnhancer.NONE
+    assert fast.occlusion_mask is False
+
+    quality = resolve_preset(QualityPreset.QUALITY)
+    assert quality.face_enhancer == FaceEnhancer.CODEFORMER
+    assert quality.face_enhancer_blend == 90
+    assert quality.pixel_boost == "512x512"
+    assert quality.occlusion_mask is True
+
+    balanced = resolve_preset(QualityPreset.BALANCED)
+    assert balanced.face_enhancer_blend == 60

@@ -40,6 +40,41 @@ class SwapQuality(BaseModel):
     pixel_boost: str = "256x256"
 
 
+class QualityPreset(str, Enum):
+    """质量预设:速度 ↔ 质量的档位。"""
+
+    FAST = "fast"
+    BALANCED = "balanced"
+    QUALITY = "quality"
+
+
+_PRESET_MAP: "dict[QualityPreset, SwapQuality]" = {
+    QualityPreset.FAST: SwapQuality(
+        face_enhancer=FaceEnhancer.NONE,
+        face_enhancer_blend=0,
+        occlusion_mask=False,
+        pixel_boost="256x256",
+    ),
+    QualityPreset.BALANCED: SwapQuality(
+        face_enhancer=FaceEnhancer.CODEFORMER,
+        face_enhancer_blend=60,
+        occlusion_mask=True,
+        pixel_boost="256x256",
+    ),
+    QualityPreset.QUALITY: SwapQuality(
+        face_enhancer=FaceEnhancer.CODEFORMER,
+        face_enhancer_blend=90,
+        occlusion_mask=True,
+        pixel_boost="512x512",
+    ),
+}
+
+
+def resolve_preset(preset: QualityPreset) -> SwapQuality:
+    """把预设映射成 SwapQuality(返回副本,避免调用方改到共享实例)。"""
+    return _PRESET_MAP[preset].model_copy()
+
+
 class FaceSelection(BaseModel):
     """人脸选择参数。"""
 

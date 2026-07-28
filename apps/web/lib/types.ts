@@ -3,6 +3,7 @@
 export type FaceEnhancer = "none" | "codeformer" | "gfpgan";
 export type FaceSelectorMode = "reference" | "one" | "many";
 export type JobStatus = "pending" | "running" | "done" | "failed";
+export type QualityPreset = "fast" | "balanced" | "quality";
 
 export interface SwapQuality {
   swapper_model: string;
@@ -12,6 +13,7 @@ export interface SwapQuality {
 }
 
 export interface SwapParams extends Partial<SwapQuality> {
+  preset?: QualityPreset;
   trim_frame_start?: number;
   trim_frame_end?: number;
 }

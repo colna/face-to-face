@@ -62,3 +62,22 @@ def test_engine_failure_500() -> None:
         assert "引擎炸了" in resp.json()["detail"]
     finally:
         app.dependency_overrides.clear()
+
+
+def test_preset_quality() -> None:
+    """preset=quality 时应正常换脸(走预设档位)。"""
+    app.dependency_overrides[get_swapper] = lambda: _FakeSwapper()
+    try:
+        resp = client.post("/swap/image", files=_files(), data={"preset": "quality"})
+        assert resp.status_code == 200
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_invalid_preset_400() -> None:
+    app.dependency_overrides[get_swapper] = lambda: _FakeSwapper()
+    try:
+        resp = client.post("/swap/image", files=_files(), data={"preset": "ultra"})
+        assert resp.status_code == 400
+    finally:
+        app.dependency_overrides.clear()

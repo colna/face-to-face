@@ -14,8 +14,10 @@ from engine.schemas import (
     ImageSwapRequest,
     JobState,
     JobStatus,
+    QualityPreset,
     SwapQuality,
     VideoSwapRequest,
+    resolve_preset,
 )
 from fastapi import (
     BackgroundTasks,
@@ -66,6 +68,24 @@ def _save_upload(upload: UploadFile, dest: Path) -> None:
         shutil.copyfileobj(upload.file, f)
 
 
+def _build_quality(
+    preset: Optional[str],
+    swapper_model: str,
+    face_enhancer: str,
+    face_enhancer_blend: int,
+    occlusion_mask: bool,
+) -> SwapQuality:
+    """有 preset 用预设,否则用显式参数。非法值抛 ValueError(上层转 400)。"""
+    if preset:
+        return resolve_preset(QualityPreset(preset))
+    return SwapQuality(
+        swapper_model=swapper_model,
+        face_enhancer=FaceEnhancer(face_enhancer),
+        face_enhancer_blend=face_enhancer_blend,
+        occlusion_mask=occlusion_mask,
+    )
+
+
 @app.post("/swap/image")
 async def swap_image(
     source: UploadFile = File(...),
@@ -74,6 +94,7 @@ async def swap_image(
     face_enhancer: str = Form("codeformer"),
     face_enhancer_blend: int = Form(80),
     occlusion_mask: bool = Form(True),
+    preset: Optional[str] = Form(None),
     swapper: ImageSwapper = Depends(get_swapper),
 ) -> FileResponse:
     """图片换脸:上传 source/target,返回换脸产物。"""
@@ -86,11 +107,8 @@ async def swap_image(
     _save_upload(target, tgt_path)
 
     try:
-        quality = SwapQuality(
-            swapper_model=swapper_model,
-            face_enhancer=FaceEnhancer(face_enhancer),
-            face_enhancer_blend=face_enhancer_blend,
-            occlusion_mask=occlusion_mask,
+        quality = _build_quality(
+            preset, swapper_model, face_enhancer, face_enhancer_blend, occlusion_mask
         )
         req = ImageSwapRequest(
             source_path=str(src_path),
@@ -118,6 +136,7 @@ async def swap_video(
     face_enhancer: str = Form("codeformer"),
     face_enhancer_blend: int = Form(80),
     occlusion_mask: bool = Form(True),
+    preset: Optional[str] = Form(None),
     trim_frame_start: Optional[int] = Form(None),
     trim_frame_end: Optional[int] = Form(None),
     mgr: VideoJobManager = Depends(get_video_manager),
@@ -132,11 +151,8 @@ async def swap_video(
     _save_upload(target, tgt_path)
 
     try:
-        quality = SwapQuality(
-            swapper_model=swapper_model,
-            face_enhancer=FaceEnhancer(face_enhancer),
-            face_enhancer_blend=face_enhancer_blend,
-            occlusion_mask=occlusion_mask,
+        quality = _build_quality(
+            preset, swapper_model, face_enhancer, face_enhancer_blend, occlusion_mask
         )
         req = VideoSwapRequest(
             source_path=str(src_path),

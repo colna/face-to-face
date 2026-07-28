@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Optional, Union
 
-from engine.schemas import FaceEnhancer, ImageSwapRequest
+from engine.schemas import FaceEnhancer, ImageSwapRequest, VideoSwapRequest
 
 # 注入点:接收命令 argv,返回 CompletedProcess。
 Runner = Callable[[list[str]], "subprocess.CompletedProcess[str]"]
@@ -79,9 +79,35 @@ class FaceFusionRunner:
     def swap_image(self, req: ImageSwapRequest) -> str:
         """执行图片换脸,成功返回产物路径,失败抛 RuntimeError。"""
         cmd = self.build_image_command(req)
+        return self._run_and_verify(cmd, req.output_path)
+
+    def build_video_command(self, req: VideoSwapRequest) -> list[str]:
+        """把视频请求编译成 FaceFusion headless-run argv(在图片命令基础上加裁剪帧)。"""
+        cmd = self.build_image_command(req)
+        cmd += ["--output-video-encoder", "libx264"]
+        if req.trim_frame_start is not None:
+            cmd += ["--trim-frame-start", str(req.trim_frame_start)]
+        if req.trim_frame_end is not None:
+            cmd += ["--trim-frame-end", str(req.trim_frame_end)]
+        return cmd
+
+    def swap_video(
+        self,
+        req: VideoSwapRequest,
+        on_progress: Optional[Callable[[float], None]] = None,
+    ) -> str:
+        """执行视频换脸。progress 的逐帧上报待真机接 FaceFusion 输出解析(🖥️);
+        当前实现完成后置 1.0。"""
+        cmd = self.build_video_command(req)
+        out = self._run_and_verify(cmd, req.output_path)
+        if on_progress is not None:
+            on_progress(1.0)
+        return out
+
+    def _run_and_verify(self, cmd: list[str], output_path: str) -> str:
         proc = self._run(cmd)
         if proc.returncode != 0:
             raise RuntimeError(f"FaceFusion 换脸失败(code={proc.returncode}): {proc.stderr}")
-        if not Path(req.output_path).is_file():
-            raise RuntimeError(f"FaceFusion 返回成功但未生成产物: {req.output_path}")
-        return req.output_path
+        if not Path(output_path).is_file():
+            raise RuntimeError(f"FaceFusion 返回成功但未生成产物: {output_path}")
+        return output_path

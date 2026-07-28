@@ -1,0 +1,34 @@
+# deps
+node_modules/
+.pnpm-store/
+__pycache__/
+.venv/
+*.egg-info/
+
+# build
+dist/
+build/
+.next/
+.turbo/
+out/
+
+# env / secrets
+.env
+.env.local
+.env.*.local
+
+# models / large artifacts (自建换脸模型不入库)
+models/
+*.onnx
+*.pth
+*.safetensors
+
+# runtime outputs
+outputs/
+tmp/
+*.log
+
+# os / editor
+.DS_Store
+.idea/
+.vscode/

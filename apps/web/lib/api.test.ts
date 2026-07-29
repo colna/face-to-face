@@ -14,17 +14,20 @@ const file = (name: string) => new File([new Uint8Array([1, 2, 3])], name);
 describe("swapImage", () => {
   it("POST /swap/image 带 FormData,返回 Blob", async () => {
     const fetchFn = mockFetch(
-      () => new Response(new Blob([new Uint8Array([9])]), { status: 200 }),
+      () => new Response(new Uint8Array([9]).buffer, { status: 200 }),
     );
     const blob = await swapImage(file("s.jpg"), file("t.jpg"), {
       face_enhancer_blend: 70,
+      face_selector_mode: "many",
     });
-    expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBe(1);
+    expect(Array.from(new Uint8Array(await blob.arrayBuffer()))).toEqual([9]);
     const [url, init] = fetchFn.mock.calls[0];
     expect(url).toContain("/swap/image");
     expect(init?.method).toBe("POST");
     expect(init?.body).toBeInstanceOf(FormData);
     expect((init?.body as FormData).get("face_enhancer_blend")).toBe("70");
+    expect((init?.body as FormData).get("face_selector_mode")).toBe("many");
   });
 
   it("非 2xx 抛错并带 detail", async () => {
@@ -44,7 +47,9 @@ describe("createVideoJob / getJob", () => {
           status: 200,
         }),
     );
-    const res = await createVideoJob(file("s"), file("t"));
+    const res = await createVideoJob(file("s"), file("t"), {
+      face_selector_mode: "many",
+    });
     expect(res.job_id).toBe("abc");
   });
 
@@ -68,7 +73,9 @@ describe("listModels", () => {
       () =>
         new Response(
           JSON.stringify({
-            models: [{ name: "hyperswap", category: "swapper", present: false }],
+            models: [
+              { name: "hyperswap", category: "swapper", present: false },
+            ],
             all_ready: false,
           }),
           { status: 200 },

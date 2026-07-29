@@ -1,4 +1,5 @@
 """FaceForge API 入口。"""
+
 import os
 import shutil
 import tempfile
@@ -11,6 +12,8 @@ from engine.models import MODEL_CATALOG, ModelManager
 from engine.realtime import FrameProcessor, RealtimeSession
 from engine.schemas import (
     FaceEnhancer,
+    FaceSelection,
+    FaceSelectorMode,
     ImageSwapRequest,
     JobState,
     JobStatus,
@@ -30,6 +33,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
@@ -42,8 +46,21 @@ from app.deps import (
 )
 
 app = FastAPI(title="FaceForge API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 WORK_DIR = Path(os.environ.get("FACEFORGE_WORK_DIR", tempfile.gettempdir())) / "faceforge"
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+VIDEO_SUFFIXES = {".avi", ".m4v", ".mov", ".mp4", ".webm"}
 
 
 @app.get("/health")
@@ -57,8 +74,7 @@ def list_models(mgr: ModelManager = Depends(get_model_manager)) -> dict[str, obj
     """模型清单与就绪状态(启动自检)。"""
     status = mgr.self_check(MODEL_CATALOG)
     models = [
-        {"name": m.name, "category": m.category, "present": status[m.name]}
-        for m in MODEL_CATALOG
+        {"name": m.name, "category": m.category, "present": status[m.name]} for m in MODEL_CATALOG
     ]
     return {"models": models, "all_ready": all(status.values())}
 
@@ -66,6 +82,19 @@ def list_models(mgr: ModelManager = Depends(get_model_manager)) -> dict[str, obj
 def _save_upload(upload: UploadFile, dest: Path) -> None:
     with open(dest, "wb") as f:
         shutil.copyfileobj(upload.file, f)
+
+
+def _upload_path(
+    job_dir: Path,
+    stem: str,
+    upload: UploadFile,
+    allowed_suffixes: set[str],
+    default_suffix: str,
+) -> Path:
+    suffix = Path(upload.filename or "").suffix.lower()
+    if suffix not in allowed_suffixes:
+        suffix = default_suffix
+    return job_dir / f"{stem}{suffix}"
 
 
 def _build_quality(
@@ -92,16 +121,17 @@ async def swap_image(
     target: UploadFile = File(...),
     swapper_model: str = Form("hyperswap_1a_256"),
     face_enhancer: str = Form("codeformer"),
-    face_enhancer_blend: int = Form(80),
-    occlusion_mask: bool = Form(True),
+    face_enhancer_blend: int = Form(30),
+    occlusion_mask: bool = Form(False),
+    face_selector_mode: str = Form("many"),
     preset: Optional[str] = Form(None),
     swapper: ImageSwapper = Depends(get_swapper),
 ) -> FileResponse:
     """图片换脸:上传 source/target,返回换脸产物。"""
     job_dir = WORK_DIR / uuid.uuid4().hex
     job_dir.mkdir(parents=True, exist_ok=True)
-    src_path = job_dir / "source.img"
-    tgt_path = job_dir / "target.img"
+    src_path = _upload_path(job_dir, "source", source, IMAGE_SUFFIXES, ".jpg")
+    tgt_path = _upload_path(job_dir, "target", target, IMAGE_SUFFIXES, ".jpg")
     out_path = job_dir / "result.jpg"
     _save_upload(source, src_path)
     _save_upload(target, tgt_path)
@@ -115,6 +145,7 @@ async def swap_image(
             target_path=str(tgt_path),
             output_path=str(out_path),
             quality=quality,
+            face=FaceSelection(selector_mode=FaceSelectorMode(face_selector_mode)),
         )
     except (ValidationError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"参数不合法: {exc}") from exc
@@ -134,8 +165,9 @@ async def swap_video(
     target: UploadFile = File(...),
     swapper_model: str = Form("hyperswap_1a_256"),
     face_enhancer: str = Form("codeformer"),
-    face_enhancer_blend: int = Form(80),
-    occlusion_mask: bool = Form(True),
+    face_enhancer_blend: int = Form(30),
+    occlusion_mask: bool = Form(False),
+    face_selector_mode: str = Form("many"),
     preset: Optional[str] = Form(None),
     trim_frame_start: Optional[int] = Form(None),
     trim_frame_end: Optional[int] = Form(None),
@@ -144,8 +176,8 @@ async def swap_video(
     """视频换脸:建异步任务,后台执行,返回 job_id。"""
     job_dir = WORK_DIR / uuid.uuid4().hex
     job_dir.mkdir(parents=True, exist_ok=True)
-    src_path = job_dir / "source.img"
-    tgt_path = job_dir / "target.mp4"
+    src_path = _upload_path(job_dir, "source", source, IMAGE_SUFFIXES, ".jpg")
+    tgt_path = _upload_path(job_dir, "target", target, VIDEO_SUFFIXES, ".mp4")
     out_path = job_dir / "result.mp4"
     _save_upload(source, src_path)
     _save_upload(target, tgt_path)
@@ -159,6 +191,7 @@ async def swap_video(
             target_path=str(tgt_path),
             output_path=str(out_path),
             quality=quality,
+            face=FaceSelection(selector_mode=FaceSelectorMode(face_selector_mode)),
             trim_frame_start=trim_frame_start,
             trim_frame_end=trim_frame_end,
         )

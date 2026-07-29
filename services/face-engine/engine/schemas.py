@@ -1,8 +1,9 @@
 """引擎入参/出参 schema(质量参数、人脸选择、任务状态)。"""
+
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class FaceEnhancer(str, Enum):
@@ -35,9 +36,20 @@ class SwapQuality(BaseModel):
 
     swapper_model: str = "hyperswap_1a_256"
     face_enhancer: FaceEnhancer = FaceEnhancer.CODEFORMER
-    face_enhancer_blend: int = Field(default=80, ge=0, le=100)
-    occlusion_mask: bool = True
+    face_enhancer_blend: int = Field(default=30, ge=0, le=100)
+    occlusion_mask: bool = False
     pixel_boost: str = "256x256"
+    face_mask_blur: float = Field(default=0.5, ge=0.0, le=1.0)
+    face_mask_padding: tuple[int, int, int, int] = (35, 25, 20, 25)
+
+    @field_validator("face_mask_padding")
+    @classmethod
+    def _validate_face_mask_padding(
+        cls, padding: tuple[int, int, int, int]
+    ) -> tuple[int, int, int, int]:
+        if any(value < 0 or value > 100 for value in padding):
+            raise ValueError("face_mask_padding 每项必须在 0-100 之间")
+        return padding
 
 
 class QualityPreset(str, Enum):
@@ -57,15 +69,15 @@ _PRESET_MAP: "dict[QualityPreset, SwapQuality]" = {
     ),
     QualityPreset.BALANCED: SwapQuality(
         face_enhancer=FaceEnhancer.CODEFORMER,
-        face_enhancer_blend=60,
-        occlusion_mask=True,
+        face_enhancer_blend=20,
+        occlusion_mask=False,
         pixel_boost="256x256",
     ),
     QualityPreset.QUALITY: SwapQuality(
         face_enhancer=FaceEnhancer.CODEFORMER,
-        face_enhancer_blend=90,
-        occlusion_mask=True,
-        pixel_boost="512x512",
+        face_enhancer_blend=30,
+        occlusion_mask=False,
+        pixel_boost="256x256",
     ),
 }
 

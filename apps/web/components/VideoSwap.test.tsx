@@ -42,9 +42,15 @@ describe("VideoSwap", () => {
     pickBoth();
     fireEvent.click(screen.getByRole("button", { name: "开始换脸" }));
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "下载结果" })).toBeInTheDocument(),
+      expect(
+        screen.getByRole("button", { name: "下载结果" }),
+      ).toBeInTheDocument(),
     );
     expect(api.createVideoJob).toHaveBeenCalledOnce();
+    expect(vi.mocked(api.createVideoJob).mock.calls[0][2]).toEqual({
+      occlusion_mask: false,
+      face_selector_mode: "many",
+    });
   });
 
   it("任务 failed 展示错误", async () => {
@@ -60,10 +66,17 @@ describe("VideoSwap", () => {
     });
     render(<VideoSwap pollMs={1} />);
     pickBoth();
+    fireEvent.change(screen.getByLabelText("换脸范围"), {
+      target: { value: "one" },
+    });
     fireEvent.click(screen.getByRole("button", { name: "开始换脸" }));
     await waitFor(() =>
       expect(screen.getByRole("alert")).toHaveTextContent("转码失败"),
     );
+    expect(vi.mocked(api.createVideoJob).mock.calls[0][2]).toEqual({
+      occlusion_mask: false,
+      face_selector_mode: "one",
+    });
   });
 
   it("点下载调用 downloadJob", async () => {
@@ -76,7 +89,9 @@ describe("VideoSwap", () => {
       status: "done",
       progress: 1,
     });
-    vi.mocked(api.downloadJob).mockResolvedValue(new Blob([new Uint8Array([1])]));
+    vi.mocked(api.downloadJob).mockResolvedValue(
+      new Blob([new Uint8Array([1])]),
+    );
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     render(<VideoSwap pollMs={1} />);
     pickBoth();

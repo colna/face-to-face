@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createVideoJob, downloadJob, getJob } from "@/lib/api";
-import type { JobStatus, SwapParams } from "@/lib/types";
+import type { FaceSelectorMode, JobStatus, SwapParams } from "@/lib/types";
 import { FilePicker } from "./FilePicker";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -14,7 +14,9 @@ interface Props {
 export function VideoSwap({ pollMs = 1000 }: Props) {
   const [source, setSource] = useState<File | null>(null);
   const [target, setTarget] = useState<File | null>(null);
-  const [occlusion, setOcclusion] = useState(true);
+  const [occlusion, setOcclusion] = useState(false);
+  const [faceSelectorMode, setFaceSelectorMode] =
+    useState<FaceSelectorMode>("many");
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<JobStatus | null>(null);
   const [progress, setProgress] = useState(0);
@@ -43,7 +45,10 @@ export function VideoSwap({ pollMs = 1000 }: Props) {
     setProgress(0);
     setStatus("pending");
     try {
-      const params: SwapParams = { occlusion_mask: occlusion };
+      const params: SwapParams = {
+        occlusion_mask: occlusion,
+        face_selector_mode: faceSelectorMode,
+      };
       const { job_id } = await createVideoJob(source, target, params);
       setJobId(job_id);
       await poll(job_id);
@@ -66,7 +71,26 @@ export function VideoSwap({ pollMs = 1000 }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <FilePicker label="源脸(Source)" accept="image/*" onSelect={setSource} />
-      <FilePicker label="目标视频(Target)" accept="video/*" onSelect={setTarget} />
+      <FilePicker
+        label="目标视频(Target)"
+        accept="video/*"
+        onSelect={setTarget}
+      />
+
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="text-gray-600">换脸范围</span>
+        <select
+          value={faceSelectorMode}
+          onChange={(e) =>
+            setFaceSelectorMode(e.target.value as FaceSelectorMode)
+          }
+          className="rounded border border-gray-300 p-2"
+        >
+          <option value="many">全部人脸</option>
+          <option value="one">第一张人脸</option>
+          <option value="reference">参考脸匹配</option>
+        </select>
+      </label>
 
       <label className="flex items-center gap-2 text-sm">
         <input
@@ -103,7 +127,11 @@ export function VideoSwap({ pollMs = 1000 }: Props) {
         </button>
       )}
 
-      {error && <p role="alert" className="text-red-600">{error}</p>}
+      {error && (
+        <p role="alert" className="text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -14,6 +14,7 @@ export interface SwapQuality {
 
 export interface SwapParams extends Partial<SwapQuality> {
   preset?: QualityPreset;
+  face_selector_mode?: FaceSelectorMode;
   trim_frame_start?: number;
   trim_frame_end?: number;
 }

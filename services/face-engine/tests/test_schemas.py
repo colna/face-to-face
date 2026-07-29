@@ -1,4 +1,5 @@
 """T2.1 schemas 单测(TDD:先写)。"""
+
 import pytest
 from pydantic import ValidationError
 
@@ -18,8 +19,11 @@ def test_swap_quality_defaults() -> None:
     q = SwapQuality()
     assert q.swapper_model == "hyperswap_1a_256"
     assert q.face_enhancer == FaceEnhancer.CODEFORMER
-    assert q.face_enhancer_blend == 80
-    assert q.occlusion_mask is True
+    assert q.face_enhancer_blend == 30
+    assert q.occlusion_mask is False
+    assert q.pixel_boost == "256x256"
+    assert q.face_mask_blur == 0.5
+    assert q.face_mask_padding == (35, 25, 20, 25)
 
 
 def test_swap_quality_blend_range() -> None:
@@ -27,6 +31,15 @@ def test_swap_quality_blend_range() -> None:
         SwapQuality(face_enhancer_blend=101)
     with pytest.raises(ValidationError):
         SwapQuality(face_enhancer_blend=-1)
+
+
+def test_swap_quality_mask_range() -> None:
+    with pytest.raises(ValidationError):
+        SwapQuality(face_mask_blur=1.1)
+    with pytest.raises(ValidationError):
+        SwapQuality(face_mask_padding=(35, 25, 20, 101))
+    with pytest.raises(ValidationError):
+        SwapQuality(face_mask_padding=(35, 25, 20))  # type: ignore[arg-type]
 
 
 def test_face_selection_defaults_and_range() -> None:
@@ -43,7 +56,7 @@ def test_image_request_nested_defaults() -> None:
         target_path="/in/tgt.jpg",
         output_path="/out/res.jpg",
     )
-    assert req.quality.occlusion_mask is True
+    assert req.quality.occlusion_mask is False
     assert req.face.selector_mode == FaceSelectorMode.REFERENCE
 
 
@@ -88,9 +101,10 @@ def test_quality_presets() -> None:
 
     quality = resolve_preset(QualityPreset.QUALITY)
     assert quality.face_enhancer == FaceEnhancer.CODEFORMER
-    assert quality.face_enhancer_blend == 90
-    assert quality.pixel_boost == "512x512"
-    assert quality.occlusion_mask is True
+    assert quality.face_enhancer_blend == 30
+    assert quality.pixel_boost == "256x256"
+    assert quality.occlusion_mask is False
+    assert quality.face_mask_padding == (35, 25, 20, 25)
 
     balanced = resolve_preset(QualityPreset.BALANCED)
-    assert balanced.face_enhancer_blend == 60
+    assert balanced.face_enhancer_blend == 20

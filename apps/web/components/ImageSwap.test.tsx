@@ -45,8 +45,9 @@ describe("ImageSwap", () => {
     const params = vi.mocked(api.swapImage).mock.calls[0][2];
     expect(params).toMatchObject({
       face_enhancer: "codeformer",
-      face_enhancer_blend: 80,
-      occlusion_mask: true,
+      face_enhancer_blend: 30,
+      occlusion_mask: false,
+      face_selector_mode: "many",
     });
   });
 
@@ -74,6 +75,24 @@ describe("ImageSwap 预设", () => {
     expect(screen.queryByLabelText("增强器")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "开始换脸" }));
     await waitFor(() => expect(api.swapImage).toHaveBeenCalledOnce());
-    expect(vi.mocked(api.swapImage).mock.calls[0][2]).toEqual({ preset: "quality" });
+    expect(vi.mocked(api.swapImage).mock.calls[0][2]).toEqual({
+      preset: "quality",
+      face_selector_mode: "many",
+    });
+  });
+
+  it("可切换为只替换第一张人脸", async () => {
+    vi.mocked(api.swapImage).mockResolvedValue(new Blob([new Uint8Array([9])]));
+    render(<ImageSwap />);
+    selectFile("源脸(Source)", "s.png");
+    selectFile("目标图(Target)", "t.png");
+    fireEvent.change(screen.getByLabelText("换脸范围"), {
+      target: { value: "one" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "开始换脸" }));
+    await waitFor(() => expect(api.swapImage).toHaveBeenCalledOnce());
+    expect(vi.mocked(api.swapImage).mock.calls[0][2]).toMatchObject({
+      face_selector_mode: "one",
+    });
   });
 });
